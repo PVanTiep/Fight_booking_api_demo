@@ -1,10 +1,39 @@
 # Flight Booking API Wrapper
 
-**Live:** https://fight-booking-api-demo.onrender.com/docs
+[![CI](https://github.com/PVanTiep/Fight_booking_api_demo/actions/workflows/ci.yml/badge.svg)](https://github.com/PVanTiep/Fight_booking_api_demo/actions/workflows/ci.yml)
+[![Live on Render](https://img.shields.io/badge/Live-Render-46E3B7?logo=render)](https://fight-booking-api-demo.onrender.com/docs)
 
 FastAPI Backend-for-Frontend wrapper for the legacy flight API at `https://mock-travel-api.vercel.app`.
 
 The wrapper exposes clean, frontend-friendly REST endpoints while hiding the legacy API's inconsistent URLs, nested response shapes, duplicate fields, mixed date formats, raw codes, and inconsistent error formats.
+
+---
+
+## Table of Contents
+
+- [Live Demo](#live-demo)
+- [What It Provides](#what-it-provides)
+- [Tech Stack](#tech-stack)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Public Endpoints](#public-endpoints)
+- [Example Requests](#example-requests)
+- [Error Shape](#error-shape)
+- [Testing](#testing)
+- [Documentation](#documentation)
+
+---
+
+## Live Demo
+
+| | |
+|---|---|
+| **Swagger UI** | https://fight-booking-api-demo.onrender.com/docs |
+| **Health check** | https://fight-booking-api-demo.onrender.com/health |
+
+> **New here?** Read the [step-by-step demo guide](docs/demo-guide.md) — it walks through a full search → book → retrieve flow with real copy-paste values.
+
+---
 
 ## What It Provides
 
@@ -18,6 +47,8 @@ The wrapper exposes clean, frontend-friendly REST endpoints while hiding the leg
 - Retry/timeout behavior for safe upstream reads.
 - OpenAPI docs at `/docs`.
 
+---
+
 ## Tech Stack
 
 - Python 3.12
@@ -28,17 +59,14 @@ The wrapper exposes clean, frontend-friendly REST endpoints while hiding the leg
 - tenacity
 - pytest
 
-## Setup
+---
+
+## Quick Start
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 cp .env.example .env
-```
-
-Run locally:
-
-```bash
 .venv/bin/uvicorn app.main:app --reload
 ```
 
@@ -47,41 +75,49 @@ Open:
 - API docs: http://127.0.0.1:8000/docs
 - Health check: http://127.0.0.1:8000/health
 
+---
+
 ## Configuration
 
 Environment variables are documented in `.env.example`.
 
-Important settings:
+| Variable | Default | Description |
+|---|---|---|
+| `LEGACY_API_BASE_URL` | `https://mock-travel-api.vercel.app` | Upstream legacy API base URL |
+| `SIMULATE_ISSUES` | `false` | Pass `simulate_issues=true` to upstream |
+| `BOOKING_CACHE_TTL_SECONDS` | `120` | TTL for booking retrieval cache |
+| `AIRPORT_CACHE_TTL_SECONDS` | `86400` | TTL for airport metadata cache |
+| `RETRY_ATTEMPTS` | `2` | Retry attempts for safe upstream reads |
+| `CIRCUIT_FAILURE_THRESHOLD` | `3` | Failures before circuit opens |
+| `CIRCUIT_COOLDOWN_SECONDS` | `20` | Cooldown before circuit resets |
 
-- `LEGACY_API_BASE_URL`: upstream legacy API base URL.
-- `SIMULATE_ISSUES`: set to `true` to pass `simulate_issues=true` to upstream calls.
-- `BOOKING_CACHE_TTL_SECONDS`: TTL for booking retrieval cache.
-- `AIRPORT_CACHE_TTL_SECONDS`: TTL for airport metadata cache.
-- `RETRY_ATTEMPTS`: retry attempts for safe upstream reads.
+---
 
 ## Public Endpoints
 
 | Method | Endpoint | Purpose |
-| --- | --- | --- |
-| `POST` | `/api/v1/flights/search` | Search flights and return paginated clean offers. |
-| `GET` | `/api/v1/offers/{offer_id}` | Get normalized offer details. |
-| `POST` | `/api/v1/bookings` | Create a booking after local validation. |
-| `GET` | `/api/v1/bookings/{booking_reference}` | Retrieve a booking summary with cache headers. |
-| `GET` | `/api/v1/airports` | List normalized airports. |
-| `GET` | `/api/v1/airports/{code}` | Get one normalized airport. |
-| `GET` | `/health` | Health check. |
+|---|---|---|
+| `POST` | `/api/v1/flights/search` | Search flights — returns paginated, normalized offers |
+| `GET` | `/api/v1/offers/{offer_id}` | Offer details — fare rules, baggage, payment methods |
+| `POST` | `/api/v1/bookings` | Create a booking after local validation |
+| `GET` | `/api/v1/bookings/{booking_reference}` | Retrieve booking with `X-Cache` header |
+| `GET` | `/api/v1/airports` | List all normalized airports |
+| `GET` | `/api/v1/airports/{code}` | Get one airport by IATA code |
+| `GET` | `/health` | Health check |
+
+---
 
 ## Example Requests
 
 Search flights:
 
 ```bash
-curl -sS -X POST "http://127.0.0.1:8000/api/v1/flights/search?pageSize=5" \
+curl -sS -X POST "https://fight-booking-api-demo.onrender.com/api/v1/flights/search?pageSize=5" \
   -H "Content-Type: application/json" \
   -d '{
     "origin": "KUL",
     "destination": "SIN",
-    "departureDate": "2026-05-15",
+    "departureDate": "2026-06-01",
     "paxCount": 1,
     "cabin": "Y"
   }'
@@ -90,22 +126,21 @@ curl -sS -X POST "http://127.0.0.1:8000/api/v1/flights/search?pageSize=5" \
 Get offer details:
 
 ```bash
-curl -sS "http://127.0.0.1:8000/api/v1/offers/{offer_id}"
+curl -sS "https://fight-booking-api-demo.onrender.com/api/v1/offers/{offer_id}"
 ```
 
 Create booking:
 
 ```bash
-curl -sS -X POST "http://127.0.0.1:8000/api/v1/bookings" \
+curl -sS -X POST "https://fight-booking-api-demo.onrender.com/api/v1/bookings" \
   -H "Content-Type: application/json" \
   -d '{
     "offerId": "{offer_id}",
     "passengers": [
       {
-        "title": "Mr",
         "firstName": "Alex",
         "lastName": "Nguyen",
-        "dob": "1990-01-01",
+        "dob": "1990-01-15",
         "nationality": "MY",
         "passportNo": "A1234567",
         "email": "alex@example.com",
@@ -117,15 +152,17 @@ curl -sS -X POST "http://127.0.0.1:8000/api/v1/bookings" \
   }'
 ```
 
-Retrieve booking:
+Retrieve booking (run twice to see `X-Cache: MISS` → `HIT`):
 
 ```bash
-curl -i "http://127.0.0.1:8000/api/v1/bookings/{booking_reference}"
+curl -si "https://fight-booking-api-demo.onrender.com/api/v1/bookings/{booking_reference}"
 ```
+
+---
 
 ## Error Shape
 
-All wrapper-managed errors use one response shape:
+All errors — validation, upstream failures, 404s — use one response shape:
 
 ```json
 {
@@ -139,23 +176,31 @@ All wrapper-managed errors use one response shape:
 }
 ```
 
+---
+
 ## Testing
 
 ```bash
-.venv/bin/pytest -q
+.venv/bin/pytest -q --cov=app --cov-report=term-missing
 ```
 
-Current focused tests cover:
+Tests cover:
 
-- Search transformation and label enrichment.
-- Offer detail normalization.
-- Booking confirmation normalization.
-- Public validation error envelope.
-- Booking cache `MISS` then `HIT`.
+- Search transformation, pagination, and label enrichment
+- Offer detail normalization and price extraction
+- All four legacy error response formats
+- Booking create and retrieve normalization
+- Cache `MISS` → `HIT` flow
+- Input validation (past dates, bad emails, oversized passenger lists)
+- All API endpoints including error envelope shape
+
+---
 
 ## Documentation
 
-- Step-by-step demo guide with real examples: `docs/demo-guide.md`
-- System architecture and data flow diagrams: `docs/diagrams.md`
-- System design and implementation plan: `docs/implementation-plan.md`
-- AI workflow notes: `docs/ai-workflow.md`
+| Document | Description |
+|---|---|
+| [Demo Guide](docs/demo-guide.md) | Step-by-step walkthrough with real copy-paste values |
+| [System Diagrams](docs/diagrams.md) | Architecture diagram and request/response data flow |
+| [Implementation Plan](docs/implementation-plan.md) | Design decisions and technical notes |
+| [AI Workflow](docs/ai-workflow.md) | Notes on the AI-assisted development process |
