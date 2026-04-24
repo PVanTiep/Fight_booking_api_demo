@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import logging
+import logging.config
 from contextlib import asynccontextmanager
 import uuid
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes import router
 from app.clients.legacy import LegacyClient
@@ -15,6 +19,27 @@ from app.core.config import get_settings
 from app.core.errors import AppError
 from app.schemas.common import ErrorPayload, ErrorResponse
 
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+            }
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+            }
+        },
+        "root": {"level": "INFO", "handlers": ["console"]},
+    }
+)
+
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,8 +47,10 @@ async def lifespan(app: FastAPI):
     app.state.settings = settings
     app.state.legacy_client = LegacyClient(settings)
     app.state.cache = CacheManager(settings)
+    logger.info("startup complete legacy_api=%s", settings.legacy_api_base_url)
     yield
     await app.state.legacy_client.aclose()
+    logger.info("shutdown complete")
 
 
 app = FastAPI(
@@ -34,6 +61,14 @@ app = FastAPI(
     ),
     version="0.1.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Request-ID", "X-Cache"],
 )
 
 
@@ -48,6 +83,15 @@ async def add_request_id(request: Request, call_next):
 
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+    upstream = getattr(exc, "upstream_payload", None)
+    if upstream is not None:
+        logger.error(
+            "upstream error code=%s status=%s request_id=%s payload=%s",
+            exc.code,
+            exc.status_code,
+            getattr(request.state, "request_id", "req_unknown"),
+            upstream,
+        )
     return _error_response(
         request,
         code=exc.code,
@@ -65,6 +109,33 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
         message="Request validation failed.",
         status_code=422,
         details={"fields": jsonable_encoder(exc.errors())},
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    _HTTP_CODES = {404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED"}
+    return _error_response(
+        request,
+        code=_HTTP_CODES.get(exc.status_code, f"HTTP_{exc.status_code}"),
+        message=str(exc.detail),
+        status_code=exc.status_code,
+        details={},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception(
+        "unhandled exception request_id=%s",
+        getattr(request.state, "request_id", "req_unknown"),
+    )
+    return _error_response(
+        request,
+        code="INTERNAL_ERROR",
+        message="An unexpected error occurred.",
+        status_code=500,
+        details={},
     )
 
 

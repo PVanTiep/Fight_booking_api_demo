@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
+import asyncio
+import logging
 
 from app.adapters.airports import normalize_airport, normalize_airport_list
 from app.adapters.bookings import normalize_booking_create, normalize_booking_retrieve
@@ -12,6 +13,8 @@ from app.schemas.airports import Airport, AirportListResponse
 from app.schemas.bookings import BookingSummary, CreateBookingRequest
 from app.schemas.offers import OfferDetails
 from app.schemas.search import FlightSearchRequest, FlightSearchResponse
+
+logger = logging.getLogger(__name__)
 
 
 class FlightBookingService:
@@ -103,14 +106,17 @@ class FlightBookingService:
         return airport
 
     async def _airport_map(self, codes: set[str]) -> dict[str, Airport]:
+        if not codes:
+            return {}
+        codes_list = list(codes)
+        results = await asyncio.gather(
+            *[self.get_airport(code) for code in codes_list],
+            return_exceptions=True,
+        )
         airports: dict[str, Airport] = {}
-        for code in codes:
-            try:
-                airports[code] = await self.get_airport(code)
-            except Exception:
-                continue
+        for code, result in zip(codes_list, results):
+            if isinstance(result, Exception):
+                logger.warning("airport lookup failed code=%s error=%s", code, result)
+            else:
+                airports[code] = result
         return airports
-
-
-def strip_none_values(value: dict[str, Any]) -> dict[str, Any]:
-    return {key: item for key, item in value.items() if item is not None}

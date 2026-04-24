@@ -39,7 +39,7 @@ class BookingPassengerRequest(APIModel):
 
 class CreateBookingRequest(APIModel):
     offer_id: str = Field(min_length=1, examples=["1e080aa936888c3d"])
-    passengers: list[BookingPassengerRequest] = Field(min_length=1)
+    passengers: list[BookingPassengerRequest] = Field(min_length=1, max_length=9)
     contact_email: str = Field(examples=["alex@example.com"])
     contact_phone: str | None = Field(default=None, examples=["+60123456789"])
 

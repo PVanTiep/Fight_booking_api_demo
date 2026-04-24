@@ -28,8 +28,6 @@ def normalize_legacy_error(status_code: int, payload: Any) -> LegacyAPIError:
             message = str(payload.get("msg") or message)
 
     public_status = status_code if 400 <= status_code < 500 else 503
-    if status_code == 429:
-        public_status = 429
 
     return LegacyAPIError(
         code=code,

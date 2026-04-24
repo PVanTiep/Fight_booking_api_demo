@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+markers = ["anyio: run async tests with anyio backend"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/__init__.py", "app/*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

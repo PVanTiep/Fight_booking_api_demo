@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any
 
@@ -9,6 +10,8 @@ from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait
 from app.adapters.errors import normalize_legacy_error
 from app.core.config import Settings
 from app.core.errors import AppError, LegacyAPIError, is_retryable_status
+
+logger = logging.getLogger(__name__)
 
 
 class CircuitBreaker:
@@ -24,6 +27,7 @@ class CircuitBreaker:
         if time.monotonic() - self.opened_at >= self.cooldown_seconds:
             self.opened_at = None
             self.failures = 0
+            logger.info("circuit breaker reset after cooldown")
             return False
         return True
 
@@ -34,7 +38,9 @@ class CircuitBreaker:
     def record_failure(self) -> None:
         self.failures += 1
         if self.failures >= self.threshold:
-            self.opened_at = time.monotonic()
+            if self.opened_at is None:
+                self.opened_at = time.monotonic()
+                logger.warning("circuit breaker opened failures=%d", self.failures)
 
 
 class LegacyClient:
@@ -57,34 +63,16 @@ class LegacyClient:
         await self._client.aclose()
 
     async def search_flights(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return await self._request(
-            "POST",
-            "/api/v1/flightsearch",
-            json=payload,
-            retry_safe=True,
-        )
+        return await self._request("POST", "/api/v1/flightsearch", json=payload, retry_safe=True)
 
     async def get_offer(self, offer_id: str) -> dict[str, Any]:
-        return await self._request(
-            "GET",
-            f"/api/v2/offer/{offer_id}",
-            retry_safe=True,
-        )
+        return await self._request("GET", f"/api/v2/offer/{offer_id}", retry_safe=True)
 
     async def create_booking(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return await self._request(
-            "POST",
-            "/booking/create",
-            json=payload,
-            retry_safe=False,
-        )
+        return await self._request("POST", "/booking/create", json=payload, retry_safe=False)
 
     async def get_booking(self, reference: str) -> dict[str, Any]:
-        return await self._request(
-            "GET",
-            f"/api/v1/reservations/{reference}",
-            retry_safe=True,
-        )
+        return await self._request("GET", f"/api/v1/reservations/{reference}", retry_safe=True)
 
     async def list_airports(self) -> dict[str, Any]:
         return await self._request("GET", "/api/airports", retry_safe=True)
@@ -101,6 +89,7 @@ class LegacyClient:
         retry_safe: bool,
     ) -> dict[str, Any]:
         if retry_safe and self._breaker.is_open():
+            logger.warning("circuit breaker open — fast-failing %s %s", method, path)
             raise AppError(
                 code="UPSTREAM_CIRCUIT_OPEN",
                 message="The flight provider is temporarily unavailable.",
@@ -140,12 +129,14 @@ class LegacyClient:
             reraise=True,
         ):
             with attempt:
+                if attempt.retry_state.attempt_number > 1:
+                    logger.info(
+                        "retrying %s %s attempt=%d",
+                        method,
+                        path,
+                        attempt.retry_state.attempt_number,
+                    )
                 return await self._send(method, path, json=json)
-        raise AppError(
-            code="UPSTREAM_RETRY_FAILED",
-            message="The flight provider did not return a usable response.",
-            status_code=503,
-        )
 
     async def _send(
         self,
@@ -155,22 +146,24 @@ class LegacyClient:
         json: dict[str, Any] | None,
     ) -> dict[str, Any]:
         params = {"simulate_issues": "true"} if self.settings.simulate_issues else None
+        logger.debug("upstream request method=%s path=%s", method, path)
         try:
             response = await self._client.request(method, path, json=json, params=params)
         except httpx.TimeoutException as exc:
+            logger.warning("upstream timeout method=%s path=%s", method, path)
             raise LegacyAPIError(
                 code="UPSTREAM_TIMEOUT",
                 message="The flight provider did not respond in time.",
                 status_code=504,
             ) from exc
         except httpx.RequestError as exc:
+            logger.warning("upstream network error method=%s path=%s error=%s", method, path, exc)
             raise LegacyAPIError(
                 code="UPSTREAM_NETWORK_ERROR",
                 message="Could not reach the flight provider.",
                 status_code=503,
             ) from exc
 
-        payload: Any
         try:
             payload = response.json()
         except ValueError as exc:
@@ -181,6 +174,12 @@ class LegacyClient:
             ) from exc
 
         if response.status_code >= 400:
+            logger.warning(
+                "upstream error status=%d method=%s path=%s",
+                response.status_code,
+                method,
+                path,
+            )
             raise normalize_legacy_error(response.status_code, payload)
 
         if not isinstance(payload, dict):

@@ -24,6 +24,14 @@ def normalize_offer_details(payload: dict[str, Any]) -> OfferDetails:
     baggage = offer.get("baggage_allowance") if isinstance(offer.get("baggage_allowance"), dict) else {}
     payment = offer.get("payment_requirements") if isinstance(offer.get("payment_requirements"), dict) else {}
 
+    pricing = offer.get("pricing") if isinstance(offer.get("pricing"), dict) else {}
+    price: Money | None = None
+    if pricing:
+        currency = str(first_value(pricing, "currency", "CurrencyCode", default="MYR"))
+        total = to_float(first_value(pricing, "totalAmountDecimal", "total", "total_amount"))
+        if total is not None:
+            price = Money(amount=total, currency=currency)
+
     return OfferDetails(
         offer_id=str(first_value(offer, "id", "offer_id", default="")),
         status=loose_label(first_value(offer, "status", "StatusCode"), BOOKING_STATUSES, "Live"),
@@ -51,7 +59,7 @@ def normalize_offer_details(payload: dict[str, Any]) -> OfferDetails:
         else None,
         created_at=parse_datetime(first_value(offer, "created_at")),
         expires_at=parse_datetime(first_value(offer, "expires_at")),
-        price=None,
+        price=price,
     )
 
 

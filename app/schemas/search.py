@@ -27,10 +27,19 @@ class FlightSearchRequest(APIModel):
             raise ValueError("cabin must be one of Y, W, J, F")
         return value
 
+    @field_validator("departure_date")
+    @classmethod
+    def departure_not_in_past(cls, value: date) -> date:
+        if value < date.today():
+            raise ValueError("departureDate must be today or in the future")
+        return value
+
     @model_validator(mode="after")
-    def origin_and_destination_must_differ(self) -> "FlightSearchRequest":
+    def cross_field_validation(self) -> "FlightSearchRequest":
         if self.origin == self.destination:
             raise ValueError("origin and destination must be different")
+        if self.return_date is not None and self.return_date < self.departure_date:
+            raise ValueError("returnDate must be on or after departureDate")
         return self
 
 

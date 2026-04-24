@@ -3,9 +3,17 @@ services:
     build: .
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       LEGACY_API_BASE_URL: "https://mock-travel-api.vercel.app"
       REQUEST_TIMEOUT_SECONDS: "5"
       CONNECT_TIMEOUT_SECONDS: "2"
       RETRY_ATTEMPTS: "2"
+      RETRY_MIN_SECONDS: "0.2"
+      RETRY_MAX_SECONDS: "1.0"
       SIMULATE_ISSUES: "false"
+      BOOKING_CACHE_TTL_SECONDS: "120"
+      AIRPORT_CACHE_TTL_SECONDS: "86400"
+      CIRCUIT_FAILURE_THRESHOLD: "3"
+      CIRCUIT_COOLDOWN_SECONDS: "20"

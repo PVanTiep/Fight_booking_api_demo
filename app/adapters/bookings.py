@@ -51,7 +51,7 @@ def _normalize_reservation(reservation: dict[str, Any]) -> BookingSummary:
             time_limit=parse_datetime(first_value(ticketing, "time_limit")),
             ticket_numbers=[
                 str(ticket)
-                for ticket in ticketing.get("ticket_numbers", [])
+                for ticket in (ticketing.get("ticket_numbers") or [])
                 if ticket
             ],
         )

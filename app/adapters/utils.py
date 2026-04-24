@@ -36,8 +36,8 @@ def to_float(value: Any) -> float | None:
 def to_int(value: Any) -> int | None:
     if value is None or value == "":
         return None
-    if isinstance(value, str) and value.upper().endswith("KG"):
-        value = value[:-2]
+    if isinstance(value, str) and value.upper().rstrip().endswith("KG"):
+        value = value.upper().rstrip()[:-2].rstrip()
     try:
         return int(float(value))
     except (TypeError, ValueError):

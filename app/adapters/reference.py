@@ -82,18 +82,6 @@ PAYMENT_METHODS = {
     "DC": "Debit card",
 }
 
-TAX_CODES = {
-    "D8": "Airport tax",
-    "GB": "Air passenger duty",
-    "MY": "Malaysia passenger service charge",
-    "OB": "Payment surcharge",
-    "SG": "Singapore passenger service charge",
-    "UB": "Passenger service charge",
-    "XT": "Combined taxes",
-    "YQ": "Carrier surcharge",
-    "YR": "Carrier surcharge",
-}
-
 
 def code_label(code: str | None, mapping: dict[str, str], unknown: str = "Unknown") -> CodeLabel:
     normalized = (code or "UNKNOWN").upper()
@@ -102,4 +90,5 @@ def code_label(code: str | None, mapping: dict[str, str], unknown: str = "Unknow
 
 def loose_label(value: str | None, mapping: dict[str, str], unknown: str = "Unknown") -> CodeLabel:
     normalized = value or "UNKNOWN"
-    return CodeLabel(code=normalized, label=mapping.get(normalized.upper(), normalized.title() if value else unknown))
+    fallback = value.replace("_", " ").title() if value else unknown
+    return CodeLabel(code=normalized, label=mapping.get(normalized.upper(), fallback))

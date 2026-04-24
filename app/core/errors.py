@@ -28,12 +28,8 @@ class LegacyAPIError(AppError):
         status_code: int,
         upstream_payload: Any | None = None,
     ) -> None:
-        super().__init__(
-            code=code,
-            message=message,
-            status_code=status_code,
-            details={"upstream": upstream_payload} if upstream_payload is not None else {},
-        )
+        super().__init__(code=code, message=message, status_code=status_code)
+        # Keep upstream payload for server-side logging only — never serialised into public responses.
         self.upstream_payload = upstream_payload
 
 
