@@ -155,6 +155,7 @@ Current focused tests cover:
 
 ## Documentation
 
+- Step-by-step demo guide with real examples: `docs/demo-guide.md`
 - System architecture and data flow diagrams: `docs/diagrams.md`
 - System design and implementation plan: `docs/implementation-plan.md`
 - AI workflow notes: `docs/ai-workflow.md`
