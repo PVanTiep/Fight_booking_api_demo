@@ -1,0 +1,22 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: ["main"]
+    types: [completed]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Only deploy when CI passes on main
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Trigger Render deploy
+        # Add RENDER_DEPLOY_HOOK to your GitHub repo secrets:
+        # Settings → Secrets → Actions → New repository secret
+        # Get the URL from: Render dashboard → your service → Settings → Deploy Hook
+        run: |
+          curl -f -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          echo "Deploy triggered on Render"
