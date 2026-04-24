@@ -1,0 +1,11 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      LEGACY_API_BASE_URL: "https://mock-travel-api.vercel.app"
+      REQUEST_TIMEOUT_SECONDS: "5"
+      CONNECT_TIMEOUT_SECONDS: "2"
+      RETRY_ATTEMPTS: "2"
+      SIMULATE_ISSUES: "false"
