@@ -155,9 +155,4 @@ Current focused tests cover:
 
 - System design and implementation plan: `docs/implementation-plan.md`
 - AI workflow notes: `docs/ai-workflow.md`
-- Interview prep guide in English: `docs/interview-guide-en.md`
-- Interview prep guide in Vietnamese: `docs/interview-guide-vi.md`
 
-## Time-Boxed Scope
-
-This implementation is optimized for the assignment's 6-8 hour guideline: complete core flow, clean architecture, focused tests, and clear documentation. Deferred production hardening includes Redis-backed caching, broader code catalogs, deployment automation, and exhaustive edge-case coverage.
