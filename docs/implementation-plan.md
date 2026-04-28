@@ -173,7 +173,7 @@ Resilience behavior:
 
 ```mermaid
 flowchart TD
-  BookingRequest[GET /api/v1/bookings/{ref}] --> CacheCheck{Booking Cache Hit?}
+  BookingRequest["GET /api/v1/bookings/{ref}"] --> CacheCheck{Booking Cache Hit?}
   CacheCheck -->|Yes| Cached[Return Cached Summary + X-Cache HIT]
   CacheCheck -->|No| Fetch[Fetch Legacy Reservation]
   Fetch --> Transform[Normalize Booking Summary]
